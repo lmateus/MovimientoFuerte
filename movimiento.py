@@ -161,6 +161,7 @@ class MovimientoFuerte():
 
         if np.min(y_plot)<0.01:
             min_plot = 0
+            #min_plot = -1 * max_plot
         else:
             min_plot= -1 * max_plot 
       
@@ -276,8 +277,6 @@ class MovimientoFuerte():
         
     def espectro_respuestaA(self):
         
-        
-
         # Parametros de entrada
         osc_damping = 0.05
         osc_freqs = np.logspace(-1, 2, 100)
@@ -285,11 +284,9 @@ class MovimientoFuerte():
         
         # Determinacion de los espectros de respuesta de aceleracion para cada componente
         
-        if __name__ == '__main__':
-
-            self.osc_respsNS = calc_spec_accels(
-                    time_step, self.NS, osc_freqs, osc_damping
-            )
+        self.osc_respsNS = calc_spec_accels(
+                time_step, self.NS, osc_freqs, osc_damping
+        )
         '''self.osc_respsEW = pyrotd.calc_spec_accels(
                 time_step, self.EW, osc_freqs, osc_damping
         )      
@@ -420,15 +417,17 @@ class MovimientoFuerte():
 
 
 X = MovimientoFuerte("20080524192044_CQUET.anc")
-'''X.plot_acel()
-X.plot_vel()
+X.espectro_respuestaA()
+#X.plot_acel()
+
+'''X.plot_vel()
 X.plot_desp()
 
 X.val_pico()'''
 
 #print(X.ratioAV)
 #X.IA()
-X.espectro_respuestaA()
+#X.espectro_respuestaA()
 
 
 #X.energy_density()

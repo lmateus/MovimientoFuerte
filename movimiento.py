@@ -3,7 +3,7 @@ from obspy.core import Trace,Stream,UTCDateTime,Stats
 import matplotlib.pyplot as plt
 
 from pyrotd import calc_spec_accels
-#import pyrotd
+import pyrotd
 from numpy.fft import rfft, rfftfreq
 import obspy.signal.util
 
@@ -155,21 +155,18 @@ class MovimientoFuerte():
         """
 
         #Valores maximos y minimos del plot
-        max_plot = max(1.1 * np.max(y_plot), abs(1.1*np.min(y_plot)))
+        max_ploty = max(1.1 * np.max(y_plot), abs(1.1*np.min(y_plot)))
 
-        print(np.min(y_plot)<-0.01)
-
-        if np.min(y_plot)<0.01:
+        if np.min(y_plot)>0.000000000001:
             min_plot = 0
-            #min_plot = -1 * max_plot
         else:
-            min_plot= -1 * max_plot 
+            min_plot= -1 * max_ploty 
       
         plt.figure(figsize=(10,4))
 
         plt.subplot(1,3,1)
         plt.plot(x_plot[0],y_plot[0],label=self.infplot['NS']['label'],color=self.infplot['NS']['Color'])
-        plt.ylim(min_plot,max_plot)
+        plt.ylim(min_plot,max_ploty)
         plt.grid()
         plt.ylabel(y_label)
         plt.xlabel(x_label)
@@ -177,21 +174,61 @@ class MovimientoFuerte():
 
         plt.subplot(1,3,2)
         plt.plot(x_plot[1],y_plot[1],label=self.infplot['EW']['label'],color=self.infplot['EW']['Color'])
-        plt.ylim(min_plot,max_plot)
+        plt.ylim(min_plot,max_ploty)
         plt.xlabel(x_label)
         plt.grid()
         plt.legend()
         
         plt.subplot(1,3,3)
         plt.plot(x_plot[2],y_plot[2],label=self.infplot['VER']['label'],color=self.infplot['VER']['Color'])
-        plt.ylim(min_plot,max_plot)
+        plt.ylim(min_plot,max_ploty)
         plt.xlabel(x_label)
         plt.grid()
         plt.legend()
 
         plt.show()
-        #plt.ylabel("Aceleracion ($m/s^2$)")
 
+    def plotGeneral(self,x_plot,y_plot,x_label,y_label,xplot_max):
+        """
+        Crea un formato de plot general para los parametros determinados
+
+        """
+        #Valores maximos y minimos del plot
+        max_ploty = max(1.1 * np.max(y_plot), abs(1.1*np.min(y_plot)))
+
+        if np.min(y_plot)>0.000000000001:
+            min_plot = 0
+        else:
+            min_plot= -1 * max_ploty 
+      
+        plt.figure(figsize=(10,4))
+
+        plt.subplot(1,3,1)
+        plt.plot(x_plot[0],y_plot[0],label=self.infplot['NS']['label'],color=self.infplot['NS']['Color'])
+        plt.ylim(min_plot,max_ploty)
+        plt.xlim(0,xplot_max)
+        plt.grid()
+        plt.ylabel(y_label)
+        plt.xlabel(x_label)
+        plt.legend()
+
+        plt.subplot(1,3,2)
+        plt.plot(x_plot[1],y_plot[1],label=self.infplot['EW']['label'],color=self.infplot['EW']['Color'])
+        plt.ylim(min_plot,max_ploty)
+        plt.xlim(0,xplot_max)
+        plt.xlabel(x_label)
+        plt.grid()
+        plt.legend()
+        
+        plt.subplot(1,3,3)
+        plt.plot(x_plot[2],y_plot[2],label=self.infplot['VER']['label'],color=self.infplot['VER']['Color'])
+        plt.ylim(min_plot,max_ploty)
+        plt.xlim(0,xplot_max)
+        plt.xlabel(x_label)
+        plt.grid()
+        plt.legend()
+
+        plt.show()
       
     def plot_acel(self):
 
@@ -235,9 +272,9 @@ class MovimientoFuerte():
         factor_IA = np.pi/(2*9.8)
         
         # Se integra con la ley del trapecio
-        arias_inte_NS = integrate.cumtrapz(y_integrate_NS,self.tiempo,self.muestreo,0)
-        arias_inte_EW = integrate.cumtrapz(y_integrate_EW,self.tiempo,self.muestreo,0)
-        arias_inte_VER = integrate.cumtrapz(y_integrate_VER,self.tiempo,self.muestreo,0)
+        arias_inte_NS = integrate.cumtrapz(y_integrate_NS,self.tiempo,)
+        arias_inte_EW = integrate.cumtrapz(y_integrate_EW,self.tiempo)
+        arias_inte_VER = integrate.cumtrapz(y_integrate_VER,self.tiempo)
         
         #Se determina la intensidad de Arias
         arias_NS = factor_IA * arias_inte_NS
@@ -287,19 +324,14 @@ class MovimientoFuerte():
         self.osc_respsNS = calc_spec_accels(
                 time_step, self.NS, osc_freqs, osc_damping
         )
-        '''self.osc_respsEW = pyrotd.calc_spec_accels(
+        self.osc_respsEW = pyrotd.calc_spec_accels(
                 time_step, self.EW, osc_freqs, osc_damping
         )      
         
         self.osc_respsVER = pyrotd.calc_spec_accels(
                 time_step, self.VER, osc_freqs, osc_damping
-        )'''
+        )
 
-        print(self.osc_respsNS)
-
-        
-
-        '''
         # Se determinan los periodos para las graficas
         self.periodoNS = 1 / self.osc_respsNS.osc_freq
         self.periodoEW = 1 / self.osc_respsEW.osc_freq
@@ -320,7 +352,16 @@ class MovimientoFuerte():
         self.PSD_NS = self.PSV_NS / self.osc_respsNS.osc_freq
         self.PSD_EW = self.PSV_EW / self.osc_respsEW.osc_freq
         self.PSD_VER = self.PSV_VER / self.osc_respsVER.osc_freq
-        
+
+        periodosX = [self.periodoNS,self.periodoEW,self.periodoVER]
+        aceleracionesS = [self.osc_respsNS.spec_accel,self.osc_respsEW.spec_accel,self.osc_respsVER.spec_accel]
+        velocidadS = [self.PSV_NS,self.PSV_EW,self.PSV_VER]
+        desplazamientoS = [self.PSD_NS,self.PSD_EW,self.PSD_VER]
+
+        self.plotGeneral(periodosX,aceleracionesS,'Periodo, [s]', 'Aceleracion espectral, $[m/s^2]$',3)
+        self.plotGeneral(periodosX,velocidadS,'Periodo, [s]', 'Velocidad espectral, $[m/s]$',3)
+        self.plotGeneral(periodosX,desplazamientoS,'Periodo, [s]', 'Desplazamiento espectral, $[m]$',5)
+                
         plt.figure(figsize=(8,5))
         plt.plot(self.periodoNS, self.osc_respsNS.spec_accel, label="NS")
         plt.plot(self.periodoEW, self.osc_respsEW.spec_accel, label="EW")
@@ -331,7 +372,8 @@ class MovimientoFuerte():
         plt.xlabel("Periodo(s)")
         plt.ylabel("Aceleracion espectral m/s2")
         plt.xlim(0,2)
-        plt.plot()'''
+        plt.plot()
+        plt.show()
         
     def fourier(self):
         
@@ -365,9 +407,9 @@ class MovimientoFuerte():
         y_integrate_EW = self.vel_EW**2
         y_integrate_VER = self.vel_VER**2
         
-        integral_v2_NS = np.max(integrate.cumtrapz(y_integrate_NS,self.tiempoV,self.muestreo,0))
-        integral_v2_EW = np.max(integrate.cumtrapz(y_integrate_EW,self.tiempoV,self.muestreo,0))
-        integral_v2_VER = np.max(integrate.cumtrapz(y_integrate_VER,self.tiempoV,self.muestreo,0))
+        integral_v2_NS = np.max(integrate.cumtrapz(y_integrate_NS,self.tiempoV))
+        integral_v2_EW = np.max(integrate.cumtrapz(y_integrate_EW,self.tiempoV))
+        integral_v2_VER = np.max(integrate.cumtrapz(y_integrate_VER,self.tiempoV))
      
         #Determinacion parametros energia NS
         self.Eo_NS = 4*np.pi*(r*1000)**2*dens_material*C*integral_v2_NS
@@ -404,6 +446,8 @@ class MovimientoFuerte():
 
         print(self.vdv)
         #print(self.tiempo.shape)
+
+        self.plot(self.tiempo[0:len(self.vdv-1)],self.vdv,'Tiempo, [s]','VDV')
         
         plt.figure(figsize=(8,5))
         plt.plot(self.tiempo[0:len(self.vdv-1)],self.vdv, label="NS")
@@ -416,30 +460,14 @@ class MovimientoFuerte():
         plt.show()
 
 
-X = MovimientoFuerte("20080524192044_CQUET.anc")
-X.espectro_respuestaA()
-#X.plot_acel()
+if __name__ == "__main__":
 
-'''X.plot_vel()
-X.plot_desp()
-
-X.val_pico()'''
-
-#print(X.ratioAV)
-#X.IA()
-#X.espectro_respuestaA()
-
-
-#X.energy_density()
-
-'''x = np.arange(1,10,1)
-y = x**2
-
-X.plot(x,y)
-plt.show()'''
-
-#print(X.vdv)
-#X.fourier()
-
-
+    X = MovimientoFuerte("19990125181918_CFLAN.anc")
+    X.plot_acel()
+    #X.fourier()
+    #X.espectro_respuestaA()
+    #X.IA()
+    #X.energy_density()
+    #X.flux_energy_EW
+    #X.VDV()
 

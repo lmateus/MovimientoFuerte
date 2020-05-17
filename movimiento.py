@@ -54,12 +54,13 @@ class MovimientoFuerte():
 
 
     """
-    def __init__(self,file):
+    def __init__(self,file,correccion):
 
         path = 'Quetame/20080524192044_anc/subdirectorio/'
 
         '''Inicializa con valores del file .anc'''
         self.file = path + file
+        self.correccion = correccion
         archivo = open(self.file,"r")
         linea = archivo.readlines()
         self.sismo = linea[1]
@@ -116,18 +117,30 @@ class MovimientoFuerte():
             self.EW_o = np.append(self.EW_o, self.EW_line)
             self.VER_o = np.append(self.VER_o, self.VER_line)
             self.NS_o = np.append(self.NS_o, self.NS_line)
-            
-        #self.VER = scipy.signal.detrend(self.VER_o, axis=-1, type='linear', bp=0)
-        #self.NS = scipy.signal.detrend(self.NS_o, axis=-1, type='linear', bp=0)
-        #self.EW = scipy.signal.detrend(self.EW_o, axis=-1, type='linear', bp=0)
-
-        #self.VER = polynomial(self.VER_o, order=2)
-        #self.NS = polynomial(self.NS_o, order=2)
-        #self.EW = polynomial(self.EW_o, order=2)
         
-        self.VER = spline(self.VER_o, order=2, dspline=1000)  
-        self.NS = spline(self.NS_o, order=2, dspline=1000)
-        self.EW = spline(self.EW_o, order=2, dspline=1000)
+        if correccion == 'crudo':
+            self.EW = self.EW_o
+            self.VER = self.VER_o
+            self.NS = self.NS_o
+        else:
+
+            if correccion == 'lineal':
+                self.VER = scipy.signal.detrend(self.VER_o, axis=-1, type='linear', bp=0)
+                self.NS = scipy.signal.detrend(self.NS_o, axis=-1, type='linear', bp=0)
+                self.EW = scipy.signal.detrend(self.EW_o, axis=-1, type='linear', bp=0)
+            else:
+                if correccion == 'orden2':
+                    self.VER = polynomial(self.VER_o, order=2)
+                    self.NS = polynomial(self.NS_o, order=2)
+                    self.EW = polynomial(self.EW_o, order=2)
+                else:
+                    if correccion == 'spline':
+            
+                        self.VER = spline(self.VER_o, order=2, dspline=1000)  
+                        self.NS = spline(self.NS_o, order=2, dspline=1000)
+                        self.EW = spline(self.EW_o, order=2, dspline=1000)
+                    else:
+                        print("Incluya correccion tipo: 'crudo','lineal','orden2','spline'")
         
         self.tiempo = np.arange(0,self.duracion,self.muestreo)
         self.tiempoV = self.tiempo[0:len(self.tiempo)-1]
@@ -298,21 +311,12 @@ class MovimientoFuerte():
         
         self.duracionIA = self.tiempo_95arias - self.tiempo_5arias
 
-        plt.figure(figsize=(10,4))
+        tiempoX = [self.tiempoV,self.tiempoV,self.tiempoV]
+        ariasY = [arias_NS,arias_EW,arias_VER]
 
-        plt.plot(self.tiempoV, arias_NS,label=self.infplot['NS']['label'],color=self.infplot['NS']['Color'])
-        plt.plot(self.tiempoV, arias_EW,label=self.infplot['EW']['label'],color=self.infplot['EW']['Color'])
-        plt.plot(self.tiempoV, arias_VER,label=self.infplot['VER']['label'],color=self.infplot['VER']['Color'])
-        plt.axvline(self.tiempo_5arias)
-        plt.axvline(self.tiempo_95arias)
-        plt.grid()
-        plt.xlabel("Tiempo (s)")
-        plt.ylabel("Intensidad de Arias (m/s)") 
-        plt.legend()
-        plt.plot()
-        plt.show()
-        
-    def espectro_respuestaA(self):
+        self.plot(tiempoX,ariasY,'Tiempo, [s]','Intensidad de Arias [m/s]')
+       
+    def espectro_respuestaA(self,boolean_plot):
         
         # Parametros de entrada
         osc_damping = 0.05
@@ -358,22 +362,50 @@ class MovimientoFuerte():
         velocidadS = [self.PSV_NS,self.PSV_EW,self.PSV_VER]
         desplazamientoS = [self.PSD_NS,self.PSD_EW,self.PSD_VER]
 
-        self.plotGeneral(periodosX,aceleracionesS,'Periodo, [s]', 'Aceleracion espectral, $[m/s^2]$',3)
-        self.plotGeneral(periodosX,velocidadS,'Periodo, [s]', 'Velocidad espectral, $[m/s]$',3)
-        self.plotGeneral(periodosX,desplazamientoS,'Periodo, [s]', 'Desplazamiento espectral, $[m]$',5)
+        if boolean_plot == True:
+
+            self.plotGeneral(periodosX,aceleracionesS,'Periodo, [s]', 'Aceleracion espectral, $[m/s^2]$',3)
+            self.plotGeneral(periodosX,velocidadS,'Periodo, [s]', 'Velocidad espectral, $[m/s]$',3)
+            self.plotGeneral(periodosX,desplazamientoS,'Periodo, [s]', 'Desplazamiento espectral, $[m]$',5)
+        else:
+            pass
+
+    def benioff(self):
+
+        self.espectro_respuestaA(boolean_plot=False)
+        
+        self.benioff_pNS = integrate.cumtrapz(self.PSD_NS,self.osc_respsNS.osc_freq)
+        self.benioff_pEW = integrate.cumtrapz(self.PSD_EW,self.osc_respsEW.osc_freq)
+        self.benioff_pVER = integrate.cumtrapz(self.PSD_VER,self.osc_respsVER.osc_freq)
+
+    def housner(self):
+
+        self.espectro_respuestaA(boolean_plot=False)
+        
+        # Buscamos la posicion de T = 0.1 y T= 2.5
+        
+        delta01 = np.abs(0.1 - self.periodoNS)
+        resultNS01 = np.where(delta01 == np.amin(delta01))
+        limite_01 = np.max(resultNS01[0])
                 
-        plt.figure(figsize=(8,5))
-        plt.plot(self.periodoNS, self.osc_respsNS.spec_accel, label="NS")
-        plt.plot(self.periodoEW, self.osc_respsEW.spec_accel, label="EW")
-        plt.plot(self.periodoVER, self.osc_respsVER.spec_accel, label="VER")
-        plt.plot()
-        plt.grid()
-        plt.legend()
-        plt.xlabel("Periodo(s)")
-        plt.ylabel("Aceleracion espectral m/s2")
-        plt.xlim(0,2)
-        plt.plot()
-        plt.show()
+        delta25 = np.abs(2.5 - self.periodoNS)
+        resultNS25 = np.where(delta25 == np.amin(delta25))
+        limite_25 = np.max(resultNS25[0])
+
+        # Arreglo recortado para la integracion
+        
+        periodoH = self.periodoNS[limite_25:limite_01]
+        PSV_NS_H = self.PSV_NS[limite_25:limite_01]
+        PSV_EW_H = self.PSV_EW[limite_25:limite_01]
+        PSV_VER_H = self.PSV_VER[limite_25:limite_01]
+        
+        self.housner_PSV_NS = np.max(np.abs(integrate.cumtrapz(PSV_NS_H, periodoH)))
+        self.housner_PSV_EW = np.max(np.abs(integrate.cumtrapz(PSV_EW_H, periodoH)))
+        self.housner_PSV_VER = np.max(np.abs(integrate.cumtrapz(PSV_VER_H, periodoH)))
+
+        print(self.housner_PSV_NS,self.housner_PSV_EW,self.housner_PSV_VER)
+
+                
         
     def fourier(self):
         
@@ -442,7 +474,7 @@ class MovimientoFuerte():
         
         y_integrate_EW = self.EW**4      
         # Se integra con la ley del trapecio
-        self.vdv = ((integrate.cumtrapz(y_integrate_EW,self.tiempo,self.muestreo,0)))**(1/4)
+        self.vdv = ((integrate.cumtrapz(y_integrate_EW,self.tiempo)))**(1/4)
 
         print(self.vdv)
         #print(self.tiempo.shape)
@@ -462,11 +494,10 @@ class MovimientoFuerte():
 
 if __name__ == "__main__":
 
-    X = MovimientoFuerte("19990125181918_CFLAN.anc")
-    X.plot_acel()
-    #X.fourier()
-    #X.espectro_respuestaA()
-    #X.IA()
+    X = MovimientoFuerte("19990125181918_CFLAN.anc",'spline')
+    print(X.dist_epicentral)
+    X.housner()
+
     #X.energy_density()
     #X.flux_energy_EW
     #X.VDV()
